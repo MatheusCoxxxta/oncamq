@@ -1,4 +1,4 @@
-package worker
+package gomq_consumer
 
 import (
 	"context"

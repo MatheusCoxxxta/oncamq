@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/MatheusCoxxxta/go-bullmq-consumer/worker"
+	gomq_consumer "github.com/MatheusCoxxxta/go-bullmq-consumer/worker"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
 )
@@ -14,12 +14,12 @@ func SendFirstMail(ctx context.Context, data map[string]any) error {
 	return nil
 }
 
-func CreateEmailWorker(redisClient *redis.Client) worker.Worker {
+func CreateEmailWorker(redisClient *redis.Client) gomq_consumer.Worker {
 
-	emailQueueWorker := worker.Worker{
+	emailQueueWorker := gomq_consumer.Worker{
 		Instance: redisClient,
 		Queue:    "emailQueue",
-		Handlers: worker.Handlers{
+		Handlers: gomq_consumer.Handlers{
 			"firstAcess": SendFirstMail,
 		},
 	}
@@ -37,12 +37,12 @@ func StartTransaction(ctx context.Context, data map[string]any) error {
 	return nil
 }
 
-func CreatePaymentWorker(redisClient *redis.Client) worker.Worker {
+func CreatePaymentWorker(redisClient *redis.Client) gomq_consumer.Worker {
 
-	paymentQueueWorker := worker.Worker{
+	paymentQueueWorker := gomq_consumer.Worker{
 		Instance: redisClient,
 		Queue:    "paymentQueue",
-		Handlers: worker.Handlers{
+		Handlers: gomq_consumer.Handlers{
 			"createCustomer":   CreateCustomer,
 			"startTransaction": StartTransaction,
 		},
@@ -70,8 +70,8 @@ func main() {
 	emailQueueWorker := CreateEmailWorker(redisClient)
 	paymentQueueWorker := CreatePaymentWorker(redisClient)
 
-	go worker.StartWorker(emailQueueWorker)
-	go worker.StartWorker(paymentQueueWorker)
+	go gomq_consumer.StartWorker(emailQueueWorker)
+	go gomq_consumer.StartWorker(paymentQueueWorker)
 
 	select {}
 }
