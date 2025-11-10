@@ -50,7 +50,13 @@ func main() {
 		},
 	})
 
-	emailQueueWorker := CreateEmailWorker(redisClient)
+	emailQueueWorker := emailQueueWorker := Worker{
+		instance: redisClient,
+		queue:    "emailQueue",
+		handlers: Handlers{
+			"firstAcess": SendFirstMail,
+		},
+	}
 
 	StartWorker(emailQueueWorker)
 }
@@ -70,8 +76,22 @@ func main() {
 		},
 	})
 
-	emailQueueWorker := CreateEmailWorker(redisClient)
-	paymentQueueWorker := CreatePaymentWorker(redisClient)
+	emailQueueWorker := Worker{
+		instance: redisClient,
+		queue:    "emailQueue",
+		handlers: Handlers{
+			"firstAcess": SendFirstMail,
+		},
+	}
+
+	paymentQueueWorker := Worker{
+		instance: redisClient,
+		queue:    "paymentQueue",
+		handlers: Handlers{
+			"createCustomer": CreateCustomer,
+			"startTransaction": StartTransaction,
+		},
+	}
 
 	go StartWorker(emailQueueWorker)
 	go StartWorker(paymentQueueWorker)
