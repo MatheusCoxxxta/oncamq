@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/MatheusCoxxxta/go-bullmq-consumer/worker"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
 )
@@ -13,12 +14,12 @@ func SendFirstMail(ctx context.Context, data map[string]any) error {
 	return nil
 }
 
-func CreateEmailWorker(redisClient *redis.Client) Worker {
+func CreateEmailWorker(redisClient *redis.Client) worker.Worker {
 
-	emailQueueWorker := Worker{
+	emailQueueWorker := worker.Worker{
 		Instance: redisClient,
 		Queue:    "emailQueue",
-		Handlers: Handlers{
+		Handlers: worker.Handlers{
 			"firstAcess": SendFirstMail,
 		},
 	}
@@ -36,12 +37,12 @@ func StartTransaction(ctx context.Context, data map[string]any) error {
 	return nil
 }
 
-func CreatePaymentWorker(redisClient *redis.Client) Worker {
+func CreatePaymentWorker(redisClient *redis.Client) worker.Worker {
 
-	paymentQueueWorker := Worker{
+	paymentQueueWorker := worker.Worker{
 		Instance: redisClient,
 		Queue:    "paymentQueue",
-		Handlers: Handlers{
+		Handlers: worker.Handlers{
 			"createCustomer":   CreateCustomer,
 			"startTransaction": StartTransaction,
 		},
@@ -69,8 +70,8 @@ func main() {
 	emailQueueWorker := CreateEmailWorker(redisClient)
 	paymentQueueWorker := CreatePaymentWorker(redisClient)
 
-	go StartWorker(emailQueueWorker)
-	go StartWorker(paymentQueueWorker)
+	go worker.StartWorker(emailQueueWorker)
+	go worker.StartWorker(paymentQueueWorker)
 
 	select {}
 }
