@@ -4,14 +4,19 @@ Bem rapidamente entendi que não tem uma solução oficial, até existem algumas
 
 O uso é simples:
 
-- Crie uma instancia de Redis
+- Importações necessárias:
 
 ```golang
 import (
+	gomq_consumer "github.com/MatheusCoxxxta/go-bullmq-consumer/worker"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
 )
+```
 
+- Crie uma instancia de Redis
+
+```golang
 func main() {
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6370",
@@ -27,10 +32,10 @@ func main() {
 - Crie a instancia de worker que será utilizada para o consumo, passando a instancia de redis que será consumida, a fila e os handlers que serão utilizados para disparar ações pré-definidas de acordo com o nome do job.
 
 ```golang
-	emailQueueWorker := Worker{
-		instance: redisClient,
-		queue:    "emailQueue",
-		handlers: Handlers{
+	emailQueueWorker := gomq_consumer.Worker{
+		Instance: redisClient,
+		Queue:    "emailQueue",
+		Handlers: gomq_consumer.Handlers{
 			"firstAcess": SendFirstMail,
 		},
 	}
@@ -50,15 +55,15 @@ func main() {
 		},
 	})
 
-	emailQueueWorker := emailQueueWorker := Worker{
-		instance: redisClient,
-		queue:    "emailQueue",
-		handlers: Handlers{
+	emailQueueWorker := gomq_consumer.Worker{
+		Instance: redisClient,
+		Queue:    "emailQueue",
+		Handlers: gomq_consumer.Handlers{
 			"firstAcess": SendFirstMail,
 		},
 	}
 
-	StartWorker(emailQueueWorker)
+	gomq_consumer.StartWorker(emailQueueWorker)
 }
 ```
 
@@ -76,25 +81,26 @@ func main() {
 		},
 	})
 
-	emailQueueWorker := Worker{
-		instance: redisClient,
-		queue:    "emailQueue",
-		handlers: Handlers{
+	emailQueueWorker := gomq_consumer.Worker{
+		Instance: redisClient,
+		Queue:    "emailQueue",
+		Handlers: gomq_consumer.Handlers{
 			"firstAcess": SendFirstMail,
 		},
 	}
 
-	paymentQueueWorker := Worker{
-		instance: redisClient,
-		queue:    "paymentQueue",
-		handlers: Handlers{
-			"createCustomer": CreateCustomer,
+	paymentQueueWorker := gomq_consumer.Worker{
+		Instance: redisClient,
+		Queue:    "paymentQueue",
+		Handlers: gomq_consumer.Handlers{
+			"createCustomer":   CreateCustomer,
 			"startTransaction": StartTransaction,
 		},
 	}
 
-	go StartWorker(emailQueueWorker)
-	go StartWorker(paymentQueueWorker)
+	go gomq_consumer.StartWorker(emailQueueWorker)
+	go gomq_consumer.StartWorker(paymentQueueWorker)
+
     select {}
 }
 ```
