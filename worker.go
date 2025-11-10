@@ -17,9 +17,9 @@ var redisClient *redis.Client
 type Handlers map[string]func(ctx context.Context, data map[string]any) error
 
 type Worker struct {
-	instance *redis.Client
-	queue    string
-	handlers Handlers
+	Instance *redis.Client
+	Queue    string
+	Handlers Handlers
 }
 
 type GetKeyFromQueueResponse struct {
@@ -29,15 +29,15 @@ type GetKeyFromQueueResponse struct {
 	IsNotFound  bool
 }
 
-func RegisterInstance(connection *redis.Client) {
+func registerInstance(connection *redis.Client) {
 	redisClient = connection
 }
 
-func CreateKey(queue string, key string) string {
+func createKey(queue string, key string) string {
 	return fmt.Sprintf("bull:%s:%s", queue, key)
 }
 
-func GetValueByKey(key string) GetKeyFromQueueResponse {
+func getValueByKey(key string) GetKeyFromQueueResponse {
 
 	job, err := redisClient.HGetAll(ctx, key).Result()
 
@@ -75,11 +75,11 @@ func GetValueByKey(key string) GetKeyFromQueueResponse {
 	}
 }
 
-func CreateLastReadKey(queue string) string {
+func createLastReadKey(queue string) string {
 	return fmt.Sprintf("bull:%s:completed", queue)
 }
 
-func SetLastRead(queue string, key int) {
+func setLastRead(queue string, key int) {
 
 	fullKeyJob := fmt.Sprintf("bull:%s:%d", queue, key)
 
@@ -90,7 +90,7 @@ func SetLastRead(queue string, key int) {
 
 	score := float64(time.Now().UnixMilli())
 
-	fullKeyLastRead := CreateLastReadKey(queue)
+	fullKeyLastRead := createLastReadKey(queue)
 
 	redisClient.ZAdd(ctx, fullKeyLastRead, redis.Z{
 		Score:  score,
@@ -98,7 +98,7 @@ func SetLastRead(queue string, key int) {
 	})
 }
 
-func SetJobFinished(queue string, key int) {
+func setJobFinished(queue string, key int) {
 	fullKeyJob := fmt.Sprintf("bull:%s:%d", queue, key)
 
 	redisClient.HSet(ctx, fullKeyJob,
@@ -107,9 +107,9 @@ func SetJobFinished(queue string, key int) {
 	)
 }
 
-func GetLastRead(queue string) int {
+func getLastRead(queue string) int {
 
-	fullKey := CreateLastReadKey(queue)
+	fullKey := createLastReadKey(queue)
 
 	value, err := redisClient.ZRange(ctx, fullKey, 0, -1).Result()
 
@@ -131,21 +131,21 @@ func GetLastRead(queue string) int {
 }
 
 func StartWorker(worker Worker) {
-	log.Printf("Worker to consume %s (%s) started...", worker.queue, worker.instance.Options().Addr)
+	log.Printf("Worker to consume %s (%s) started...", worker.Queue, worker.Instance.Options().Addr)
 
-	RegisterInstance(worker.instance)
+	registerInstance(worker.Instance)
 
 	for {
-		lastRead := GetLastRead(worker.queue)
+		lastRead := getLastRead(worker.Queue)
 
 		nextToRead := lastRead + 1
-		key := CreateKey(worker.queue, strconv.Itoa(nextToRead))
+		key := createKey(worker.Queue, strconv.Itoa(nextToRead))
 
-		jobToProcess := GetValueByKey(key)
+		jobToProcess := getValueByKey(key)
 
 		if jobToProcess.IsProcessed {
-			log.Printf("No jobs to process at %s...", worker.queue)
-			SetLastRead(worker.queue, nextToRead)
+			log.Printf("No jobs to process at %s...", worker.Queue)
+			setLastRead(worker.Queue, nextToRead)
 		}
 
 		if !jobToProcess.IsNotFound {
@@ -156,7 +156,7 @@ func StartWorker(worker Worker) {
 
 				log.Printf("Dispatching... %s", jobName)
 
-				handler := worker.handlers[jobName]
+				handler := worker.Handlers[jobName]
 
 				var data map[string]any
 				if err := json.Unmarshal([]byte(jobData), &data); err != nil {
@@ -165,8 +165,8 @@ func StartWorker(worker Worker) {
 
 				handler(ctx, data)
 
-				SetLastRead(worker.queue, nextToRead)
-				SetJobFinished(worker.queue, nextToRead)
+				setLastRead(worker.Queue, nextToRead)
+				setJobFinished(worker.Queue, nextToRead)
 			}
 
 		}

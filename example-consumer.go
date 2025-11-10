@@ -16,9 +16,9 @@ func SendFirstMail(ctx context.Context, data map[string]any) error {
 func CreateEmailWorker(redisClient *redis.Client) Worker {
 
 	emailQueueWorker := Worker{
-		instance: redisClient,
-		queue:    "emailQueue",
-		handlers: Handlers{
+		Instance: redisClient,
+		Queue:    "emailQueue",
+		Handlers: Handlers{
 			"firstAcess": SendFirstMail,
 		},
 	}
@@ -39,9 +39,9 @@ func StartTransaction(ctx context.Context, data map[string]any) error {
 func CreatePaymentWorker(redisClient *redis.Client) Worker {
 
 	paymentQueueWorker := Worker{
-		instance: redisClient,
-		queue:    "paymentQueue",
-		handlers: Handlers{
+		Instance: redisClient,
+		Queue:    "paymentQueue",
+		Handlers: Handlers{
 			"createCustomer":   CreateCustomer,
 			"startTransaction": StartTransaction,
 		},
