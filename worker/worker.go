@@ -156,7 +156,13 @@ func StartWorker(worker Worker) {
 
 				log.Printf("Dispatching... %s", jobName)
 
-				handler := worker.Handlers[jobName]
+				handler, ok := worker.Handlers[jobName]
+
+				if !ok {
+					log.Printf("No handler registered for job '%s' on queue '%s'", jobName, worker.Queue)
+					setLastRead(worker.Queue, nextToRead)
+					continue
+				}
 
 				var data map[string]any
 				if err := json.Unmarshal([]byte(jobData), &data); err != nil {
@@ -171,6 +177,6 @@ func StartWorker(worker Worker) {
 
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(10 * time.Millisecond)
 	}
 }
