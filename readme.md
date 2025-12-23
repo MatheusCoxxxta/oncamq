@@ -11,7 +11,7 @@ Bem rapidamente entendi que não tem uma solução oficial, até existem algumas
 
 I looked into some options for consuming BullMQ queues with Golang to gain throughput and CPU power for the Node.js product's intensive tasks. The idea was simple: the Node.js app is already adding jobs to the queue and handling some consumption. Now, the consumption would be handled by a Golang worker.
 
-Pretty quickly I realized there’s no official solution. There are some libraries that replicate BullMQ’s full workflow, but that wasn’t my goal. I also found a few people who recently took the initiative to create a Golang consumer for the BullMQ pattern to fill this gap. Since there’s no widely adopted solution in the community, and I didn’t have the best experience with the DX of some options, I decided to build my own
+Pretty quickly I realized there’s no official solution. There are some libraries that replicate BullMQ’s full workflow, but that wasn’t my goal. I also found a few people who recently took the initiative to create a Golang consumer for the BullMQ pattern to fill this gap. Since there’s no widely adopted solution in the community, and I didn’t have the best experience with the DX of some options, I decided to build my own.
 
 O uso é simples:
 
