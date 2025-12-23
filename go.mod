@@ -1,4 +1,4 @@
-module github.com/MatheusCoxxxta/go-bullmq-consumer
+module github.com/MatheusCoxxxta/oncamq
 
 go 1.25.4
 
