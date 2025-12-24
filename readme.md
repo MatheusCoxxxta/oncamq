@@ -112,6 +112,37 @@ func main() {
 	go oncamq.StartWorker(emailQueueWorker)
 	go oncamq.StartWorker(paymentQueueWorker)
 
+
     select {}
 }
 ```
+
+## 🤝 How to Contribute
+
+### (PT-BR)
+**Issues**
+- Reporte bugs com contexto (logs/versão) e passos para reprodução.
+- Proponha grandes mudanças antes de iniciar o código.
+
+**Pull Requests**
+1. **Fork** o projeto.
+2. Crie uma **Branch** (`feat/` ou `fix/`).
+3. **Commit** sua mudança.
+4. Abra o **PR** descrevendo o problema e a solução.
+
+### (en-US)
+**Issues**
+- Report bugs with context (logs/version) and reproduction steps.
+- Propose major changes before starting implementation.
+
+**Pull Requests**
+1. **Fork** the project.
+2. Create a **Branch** (`feat/` or `fix/`).
+3. **Commit** your changes.
+4. Open a **PR** describing the problem and the solution.
+
+
+
+
+
+
