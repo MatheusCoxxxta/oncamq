@@ -15,19 +15,6 @@ func SendFirstMail(ctx context.Context, data map[string]any) (any, error) {
 	return "Sent", nil
 }
 
-func CreateEmailWorker(redisClient *redis.Client) oncamq.Worker {
-
-	emailQueueWorker := oncamq.Worker{
-		Instance: redisClient,
-		Queue:    "emailQueue",
-		Handlers: oncamq.Handlers{
-			"firstAccess": SendFirstMail,
-		},
-	}
-
-	return emailQueueWorker
-}
-
 func CreateCustomer(ctx context.Context, data map[string]any) (any, error) {
 	fmt.Println("CreateCustomer to", data["email"])
 
@@ -38,20 +25,6 @@ func StartTransaction(ctx context.Context, data map[string]any) (any, error) {
 	fmt.Println("StartTransaction to", data["email"])
 
 	return "Started", nil
-}
-
-func CreatePaymentWorker(redisClient *redis.Client) oncamq.Worker {
-
-	paymentQueueWorker := oncamq.Worker{
-		Instance: redisClient,
-		Queue:    "paymentQueue",
-		Handlers: oncamq.Handlers{
-			"createCustomer":   CreateCustomer,
-			"startTransaction": StartTransaction,
-		},
-	}
-
-	return paymentQueueWorker
 }
 
 func InitRedis() *redis.Client {
@@ -69,12 +42,26 @@ func InitRedis() *redis.Client {
 
 func main() {
 	redisClient := InitRedis()
+	ctx := context.Background()
 
-	emailQueueWorker := CreateEmailWorker(redisClient)
-	paymentQueueWorker := CreatePaymentWorker(redisClient)
+	emailQueueWorker := oncamq.New(
+		redisClient,
+		"emailQueue",
+		oncamq.Handlers{
+			"firstAccess": SendFirstMail,
+		},
+	)
+	paymentQueueWorker := oncamq.New(
+		redisClient,
+		"paymentQueue",
+		oncamq.Handlers{
+			"createCustomer":   CreateCustomer,
+			"startTransaction": StartTransaction,
+		},
+	)
 
-	go oncamq.StartWorker(emailQueueWorker)
-	go oncamq.StartWorker(paymentQueueWorker)
+	go emailQueueWorker.StartWorker(ctx)
+	go paymentQueueWorker.StartWorker(ctx)
 
 	select {}
 }
