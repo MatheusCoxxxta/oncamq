@@ -4,23 +4,24 @@ import (
 	"context"
 	"fmt"
 
-	gomq_consumer "github.com/MatheusCoxxxta/go-bullmq-consumer/worker"
+	oncamq "github.com/MatheusCoxxxta/oncamq/worker"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
 )
 
 func SendFirstMail(ctx context.Context, data map[string]any) error {
-	fmt.Println("SendFirstMail to", data["email"])
+	fmt.Println("SendFirstMail to", data["to"])
+
 	return nil
 }
 
-func CreateEmailWorker(redisClient *redis.Client) gomq_consumer.Worker {
+func CreateEmailWorker(redisClient *redis.Client) oncamq.Worker {
 
-	emailQueueWorker := gomq_consumer.Worker{
+	emailQueueWorker := oncamq.Worker{
 		Instance: redisClient,
 		Queue:    "emailQueue",
-		Handlers: gomq_consumer.Handlers{
-			"firstAcess": SendFirstMail,
+		Handlers: oncamq.Handlers{
+			"firstAccess": SendFirstMail,
 		},
 	}
 
@@ -37,12 +38,12 @@ func StartTransaction(ctx context.Context, data map[string]any) error {
 	return nil
 }
 
-func CreatePaymentWorker(redisClient *redis.Client) gomq_consumer.Worker {
+func CreatePaymentWorker(redisClient *redis.Client) oncamq.Worker {
 
-	paymentQueueWorker := gomq_consumer.Worker{
+	paymentQueueWorker := oncamq.Worker{
 		Instance: redisClient,
 		Queue:    "paymentQueue",
-		Handlers: gomq_consumer.Handlers{
+		Handlers: oncamq.Handlers{
 			"createCustomer":   CreateCustomer,
 			"startTransaction": StartTransaction,
 		},
@@ -70,8 +71,8 @@ func main() {
 	emailQueueWorker := CreateEmailWorker(redisClient)
 	paymentQueueWorker := CreatePaymentWorker(redisClient)
 
-	go gomq_consumer.StartWorker(emailQueueWorker)
-	go gomq_consumer.StartWorker(paymentQueueWorker)
+	go oncamq.StartWorker(emailQueueWorker)
+	go oncamq.StartWorker(paymentQueueWorker)
 
 	select {}
 }
