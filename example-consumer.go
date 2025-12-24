@@ -9,10 +9,10 @@ import (
 	"github.com/redis/go-redis/v9/maintnotifications"
 )
 
-func SendFirstMail(ctx context.Context, data map[string]any) error {
+func SendFirstMail(ctx context.Context, data map[string]any) (any, error) {
 	fmt.Println("SendFirstMail to", data["to"])
 
-	return nil
+	return "Sent", nil
 }
 
 func CreateEmailWorker(redisClient *redis.Client) oncamq.Worker {
@@ -28,14 +28,16 @@ func CreateEmailWorker(redisClient *redis.Client) oncamq.Worker {
 	return emailQueueWorker
 }
 
-func CreateCustomer(ctx context.Context, data map[string]any) error {
+func CreateCustomer(ctx context.Context, data map[string]any) (any, error) {
 	fmt.Println("CreateCustomer to", data["email"])
-	return nil
+
+	return "Created", nil
 }
 
-func StartTransaction(ctx context.Context, data map[string]any) error {
+func StartTransaction(ctx context.Context, data map[string]any) (any, error) {
 	fmt.Println("StartTransaction to", data["email"])
-	return nil
+
+	return "Started", nil
 }
 
 func CreatePaymentWorker(redisClient *redis.Client) oncamq.Worker {
