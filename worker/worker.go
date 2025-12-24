@@ -14,7 +14,7 @@ import (
 var ctx = context.Background()
 var redisClient *redis.Client
 
-type Handlers map[string]func(ctx context.Context, data map[string]any) error
+type Handlers map[string]func(ctx context.Context, data map[string]any) (any, error)
 
 type Worker struct {
 	Instance *redis.Client
@@ -79,35 +79,33 @@ func createLastReadKey(queue string) string {
 	return fmt.Sprintf("bull:%s:completed", queue)
 }
 
-func setLastRead(queue string, key int) {
+func setJobProcessed(queue string, key int) {
+	fullKeyJob := fmt.Sprintf("bull:%s:%d", queue, key)
+
+	redisClient.HSet(ctx, fullKeyJob,
+		"processedOn", time.Now().UnixMilli(),
+	)
+}
+
+func setJobFinished(queue string, key int, finishedOn int64, returnValue interface{}) {
+	fullKeyJob := fmt.Sprintf("bull:%s:%d", queue, key)
+
+	redisClient.HSet(ctx, fullKeyJob,
+		"finishedOn", finishedOn,
+		"returnvalue", returnValueToString(returnValue),
+	)
+}
+
+func setAttemptsCount(queue string, key int, attempt int, attemptType string) {
 
 	fullKeyJob := fmt.Sprintf("bull:%s:%d", queue, key)
 
 	redisClient.HSet(ctx, fullKeyJob,
-		"finishedOn", time.Now().UnixMilli(),
-		"returnvalue", `null`,
-	)
-
-	score := float64(time.Now().UnixMilli())
-
-	fullKeyLastRead := createLastReadKey(queue)
-
-	redisClient.ZAdd(ctx, fullKeyLastRead, redis.Z{
-		Score:  score,
-		Member: key,
-	})
-}
-
-func setJobFinished(queue string, key int) {
-	fullKeyJob := fmt.Sprintf("bull:%s:%d", queue, key)
-
-	redisClient.HSet(ctx, fullKeyJob,
-		"finishedOn", time.Now().UnixMilli(),
-		"returnvalue", `null`,
+		attemptType, attempt,
 	)
 }
 
-func getLastRead(queue string) int {
+func getLastIndexRead(queue string) int {
 
 	fullKey := createLastReadKey(queue)
 
@@ -130,22 +128,82 @@ func getLastRead(queue string) int {
 	return integerValue
 }
 
+func getAttemptsCount(queue string, key int, attemptType string) int {
+
+	fullKeyJob := fmt.Sprintf("bull:%s:%d", queue, key)
+
+	value, err := redisClient.HGet(ctx, fullKeyJob, attemptType).Result()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	if len(value) == 0 {
+		return 0
+	}
+
+	integerValue, err := strconv.Atoi(value)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return integerValue
+}
+
+func addToJobCompletedQueue(queue string, key int, finishedOn int64) {
+	fullKeyJob := fmt.Sprintf("bull:%s:completed", queue)
+
+	redisClient.ZAdd(ctx, fullKeyJob, redis.Z{
+		Score:  float64(finishedOn),
+		Member: key,
+	})
+}
+
+// To finish/solve previous event nuance
+// func addEventForJobCompleted(queue string, key int, returnValue string, previousEvent string) {
+// 	fullKeyJob := fmt.Sprintf("bull:%s:events", queue)
+
+// 	redisClient.XAdd(ctx, &redis.XAddArgs{
+// 		Stream: fullKeyJob,
+// 		ID:     "*",
+// 		Values: map[string]interface{}{
+// 			"event":       "completed",
+// 			"jobId":       strconv.Itoa(key),
+// 			"returnValue": returnValue,
+// 			"prev":        previousEvent,
+// 		},
+// 	})
+// }
+
+func returnValueToString(value any) string {
+	if value == nil {
+		return "null"
+	}
+
+	jsonEncoding, err := json.Marshal(value)
+
+	if err != nil {
+		return ""
+	}
+
+	return string(jsonEncoding)
+}
+
 func StartWorker(worker Worker) {
 	log.Printf("Worker to consume %s (%s) started...", worker.Queue, worker.Instance.Options().Addr)
 
 	registerInstance(worker.Instance)
 
 	for {
-		lastRead := getLastRead(worker.Queue)
+		lastRead := getLastIndexRead(worker.Queue)
 
-		nextToRead := lastRead + 1
-		key := createKey(worker.Queue, strconv.Itoa(nextToRead))
+		currentIndexToRead := lastRead + 1
+		key := createKey(worker.Queue, strconv.Itoa(currentIndexToRead))
 
 		jobToProcess := getValueByKey(key)
 
 		if jobToProcess.IsProcessed {
-			log.Printf("No jobs to process at %s...", worker.Queue)
-			setLastRead(worker.Queue, nextToRead)
 		}
 
 		if !jobToProcess.IsNotFound {
@@ -160,19 +218,34 @@ func StartWorker(worker Worker) {
 
 				if !ok {
 					log.Printf("No handler registered for job '%s' on queue '%s'", jobName, worker.Queue)
-					setLastRead(worker.Queue, nextToRead)
+					setJobProcessed(worker.Queue, currentIndexToRead)
 					continue
 				}
+
+				attemptsStartedForJob := getAttemptsCount(worker.Queue, currentIndexToRead, "ats")
+				attemptsStartedForJob++
+				setAttemptsCount(worker.Queue, currentIndexToRead, attemptsStartedForJob, "ats")
 
 				var data map[string]any
 				if err := json.Unmarshal([]byte(jobData), &data); err != nil {
 					continue
 				}
 
-				handler(ctx, data)
+				setJobProcessed(worker.Queue, currentIndexToRead)
 
-				setLastRead(worker.Queue, nextToRead)
-				setJobFinished(worker.Queue, nextToRead)
+				returnValue, err := handler(ctx, data)
+
+				if err != nil {
+					fmt.Println(err)
+				}
+
+				finishedOn := time.Now().UnixMilli()
+				setJobFinished(worker.Queue, currentIndexToRead, finishedOn, returnValue)
+				addToJobCompletedQueue(worker.Queue, currentIndexToRead, finishedOn)
+
+				attemptsMadeForJob := getAttemptsCount(worker.Queue, currentIndexToRead, "atm")
+				attemptsMadeForJob++
+				setAttemptsCount(worker.Queue, currentIndexToRead, attemptsMadeForJob, "atm")
 			}
 
 		}
