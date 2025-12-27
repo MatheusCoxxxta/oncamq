@@ -153,22 +153,6 @@ func (w *Worker) addToJobCompletedQueue(ctx context.Context, queue string, key i
 	})
 }
 
-// To finish/solve previous event nuance
-// func addEventForJobCompleted(ctx context.Context, queue string, key int, returnValue string, previousEvent string) {
-// 	fullKeyJob := fmt.Sprintf("bull:%s:events", queue)
-
-// 	redisClient.XAdd(ctx, &redis.XAddArgs{
-// 		Stream: fullKeyJob,
-// 		ID:     "*",
-// 		Values: map[string]interface{}{
-// 			"event":       "completed",
-// 			"jobId":       strconv.Itoa(key),
-// 			"returnValue": returnValue,
-// 			"prev":        previousEvent,
-// 		},
-// 	})
-// }
-
 func returnValueToString(value any) string {
 	if value == nil {
 		return "null"
@@ -246,9 +230,6 @@ func (w *Worker) StartWorker(ctx context.Context) {
 				attemptsMadeForJob++
 				w.setAttemptsCount(ctx, w.Queue, currentIndexToRead, attemptsMadeForJob, "atm")
 			}
-
 		}
-
-		time.Sleep(1000 * time.Millisecond)
 	}
 }
