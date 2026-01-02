@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	oncamq "github.com/MatheusCoxxxta/oncamq/worker"
+	"github.com/MatheusCoxxxta/oncamq"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
 )
