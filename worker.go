@@ -1,4 +1,4 @@
-package oncamq
+package main
 
 import (
 	"context"
