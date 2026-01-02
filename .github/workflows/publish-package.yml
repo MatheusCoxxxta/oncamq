@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Display release version
-      run: echo "Tag is ${{ github.ref_name }}"
+      run: echo "Releasing version ${{ github.ref_name }}"
 
     - name: Checkout
       uses: actions/checkout@v4
