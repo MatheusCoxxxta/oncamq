@@ -1,6 +1,6 @@
 # OnçaMQ
 
-[![Changelog](https://img.shields.io/badge/changelog-CHANGELOG.md-blue)](changelog/)
+[![Changelog](https://img.shields.io/badge/changelog-CHANGELOG.md-blue)](changelog/README.md)
 
 
 (PT-BR)
