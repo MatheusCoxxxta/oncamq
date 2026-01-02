@@ -24,12 +24,12 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: stable
-
-      - name: Run GoReleaser (library mode)
+          
+      - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
           version: '~> v2'
-          args: release --clean --skip=build --skip=archive --skip=checksum
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
