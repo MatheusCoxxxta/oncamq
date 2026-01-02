@@ -1,7 +1,7 @@
 version: 2
 
 builds:
-  - skip: true
+- skip: true
 
 archives: []
 
