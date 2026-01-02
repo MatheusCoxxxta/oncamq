@@ -1,0 +1,11 @@
+version: 2
+
+builds: []
+
+archives: []
+
+checksum:
+  disable: true
+
+release:
+  disable: false
