@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -17,6 +18,10 @@ type Worker struct {
 	redisClient *redis.Client
 	Queue       string
 	Handlers    Handlers
+
+	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 type GetKeyFromQueueResponse struct {
@@ -167,68 +172,98 @@ func returnValueToString(value any) string {
 	return string(jsonEncoding)
 }
 
-func New(redisClient *redis.Client, queue string, handlers Handlers) *Worker {
+func New(ctx context.Context, redisClient *redis.Client, queue string, handlers Handlers) *Worker {
+	ctx, cancel := context.WithCancel(ctx)
+
 	return &Worker{
 		redisClient: redisClient,
 		Queue:       queue,
 		Handlers:    handlers,
+		ctx:         ctx,
+		cancel:      cancel,
 	}
 }
 
-func (w *Worker) StartWorker(ctx context.Context) {
+func (w *Worker) Start() {
+
 	log.Printf("Worker to consume %s (%s) started...", w.Queue, w.redisClient.Options().Addr)
 
+	w.wg.Add(1)
+
+	go func() {
+		defer w.wg.Done()
+		w.run()
+	}()
+}
+
+func (w *Worker) Wait() {
+	w.wg.Wait()
+}
+
+func (w *Worker) Stop() {
+	w.cancel()
+}
+
+func (w *Worker) run() {
+	log.Printf("Worker to consume %s (%s) running...", w.Queue, w.redisClient.Options().Addr)
+
 	for {
-		lastIndexRead := w.getLastIndexRead(ctx, w.Queue)
+		select {
+		case <-w.ctx.Done():
+			return
+		default:
 
-		currentIndexToRead := lastIndexRead + 1
-		key := createKey(w.Queue, strconv.Itoa(currentIndexToRead))
+			lastIndexRead := w.getLastIndexRead(w.ctx, w.Queue)
 
-		jobToProcess := w.getValueByKey(ctx, key)
+			currentIndexToRead := lastIndexRead + 1
+			key := createKey(w.Queue, strconv.Itoa(currentIndexToRead))
 
-		if jobToProcess.IsProcessed {
-		}
+			jobToProcess := w.getValueByKey(w.ctx, key)
 
-		if !jobToProcess.IsNotFound {
+			if jobToProcess.IsProcessed {
+			}
 
-			if jobToProcess.Name != nil {
-				jobName := *jobToProcess.Name
-				jobData := *jobToProcess.Data
+			if !jobToProcess.IsNotFound {
 
-				log.Printf("Dispatching job %s of %s (jobID: %d)", jobName, w.Queue, currentIndexToRead)
+				if jobToProcess.Name != nil {
+					jobName := *jobToProcess.Name
+					jobData := *jobToProcess.Data
 
-				handler, ok := w.Handlers[jobName]
+					log.Printf("Dispatching job %s of %s (jobID: %d)", jobName, w.Queue, currentIndexToRead)
 
-				if !ok {
-					log.Printf("No handler registered for job '%s' on queue '%s'", jobName, w.Queue)
-					w.setJobProcessed(ctx, w.Queue, currentIndexToRead)
-					continue
+					handler, ok := w.Handlers[jobName]
+
+					if !ok {
+						log.Printf("No handler registered for job '%s' on queue '%s'", jobName, w.Queue)
+						w.setJobProcessed(w.ctx, w.Queue, currentIndexToRead)
+						continue
+					}
+
+					attemptsStartedForJob := w.getAttemptsCount(w.ctx, w.Queue, currentIndexToRead, "ats")
+					attemptsStartedForJob++
+					w.setAttemptsCount(w.ctx, w.Queue, currentIndexToRead, attemptsStartedForJob, "ats")
+
+					var data map[string]any
+					if err := json.Unmarshal([]byte(jobData), &data); err != nil {
+						continue
+					}
+
+					w.setJobProcessed(w.ctx, w.Queue, currentIndexToRead)
+
+					returnValue, err := handler(w.ctx, data)
+
+					if err != nil {
+						fmt.Println(err)
+					}
+
+					finishedOn := time.Now().UnixMilli()
+					w.setJobFinished(w.ctx, w.Queue, currentIndexToRead, finishedOn, returnValue)
+					w.addToJobCompletedQueue(w.ctx, w.Queue, currentIndexToRead, finishedOn)
+
+					attemptsMadeForJob := w.getAttemptsCount(w.ctx, w.Queue, currentIndexToRead, "atm")
+					attemptsMadeForJob++
+					w.setAttemptsCount(w.ctx, w.Queue, currentIndexToRead, attemptsMadeForJob, "atm")
 				}
-
-				attemptsStartedForJob := w.getAttemptsCount(ctx, w.Queue, currentIndexToRead, "ats")
-				attemptsStartedForJob++
-				w.setAttemptsCount(ctx, w.Queue, currentIndexToRead, attemptsStartedForJob, "ats")
-
-				var data map[string]any
-				if err := json.Unmarshal([]byte(jobData), &data); err != nil {
-					continue
-				}
-
-				w.setJobProcessed(ctx, w.Queue, currentIndexToRead)
-
-				returnValue, err := handler(ctx, data)
-
-				if err != nil {
-					fmt.Println(err)
-				}
-
-				finishedOn := time.Now().UnixMilli()
-				w.setJobFinished(ctx, w.Queue, currentIndexToRead, finishedOn, returnValue)
-				w.addToJobCompletedQueue(ctx, w.Queue, currentIndexToRead, finishedOn)
-
-				attemptsMadeForJob := w.getAttemptsCount(ctx, w.Queue, currentIndexToRead, "atm")
-				attemptsMadeForJob++
-				w.setAttemptsCount(ctx, w.Queue, currentIndexToRead, attemptsMadeForJob, "atm")
 			}
 		}
 	}
