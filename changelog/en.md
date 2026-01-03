@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+### [v1.0.0] Worker Concurrency Handling (Minimum Version) (2026-01-03)
+
+- **Refactor:** Enhance worker concurrency handling.
+
 ### [v0.1.7] CI/Release Configuration Fix (2026-01-02)
 
 - **Fix:** Fixed indentation in `.goreleaser.yaml`.

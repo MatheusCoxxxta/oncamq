@@ -4,6 +4,11 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 
 ---
 
+### [v1.0.0] Lidando com concorrencia de workers (versão mínima) (2026-01-03)
+
+- **Refactor:** Lidando com concorrencia de workers (versão mínima).
+
+
 ### [v0.1.7] Correção na Configuração de CI/Release (2026-01-02)
 
 - **Fix:** Correção de indentação no arquivo `.goreleaser.yaml`.
