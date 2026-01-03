@@ -21,103 +21,57 @@ O uso é simples:
 
 ```golang
 import (
-	oncamq "github.com/MatheusCoxxxta/oncamq/worker"
+	"github.com/MatheusCoxxxta/oncamq"
 	"github.com/redis/go-redis/v9"
-	"github.com/redis/go-redis/v9/maintnotifications"
 )
 ```
 
-- Crie uma instancia de Redis
+- Crie uma instancia de Redis e inicie o worker:
 
 ```golang
 func main() {
+	ctx := context.Background()
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6370",
 		Password: "redis",
 		DB:       0,
-		MaintNotificationsConfig: &maintnotifications.Config{
-			Mode: maintnotifications.ModeDisabled,
-		},
 	})
+
+	worker := oncamq.New(
+		ctx,
+		redisClient,
+		"emailQueue",
+		oncamq.Handlers{
+			"firstAccess": SendFirstMail,
+		},
+	)
+
+	worker.Start()
+	worker.Wait()
 }
 ```
 
-- Crie a instancia de worker que será utilizada para o consumo, passando a instancia de redis que será consumida, a fila e os handlers que serão utilizados para disparar ações pré-definidas de acordo com o nome do job.
+- Para usar workers para filas diferentes de forma concorrente:
 
 ```golang
-	emailQueueWorker := oncamq.Worker{
-		Instance: redisClient,
-		Queue:    "emailQueue",
-		Handlers: oncamq.Handlers{
-			"firstAcess": SendFirstMail,
-		},
-	}
-```
-
-- Adicione essa instancia de worker na chamada para iniciar o worker
-
-```golang
-
 func main() {
+	ctx := context.Background()
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6370",
-		Password: "redis",
-		DB:       0,
-		MaintNotificationsConfig: &maintnotifications.Config{
-			Mode: maintnotifications.ModeDisabled,
-		},
+		Addr: "localhost:6370",
 	})
 
-	emailQueueWorker := oncamq.Worker{
-		Instance: redisClient,
-		Queue:    "emailQueue",
-		Handlers: oncamq.Handlers{
-			"firstAcess": SendFirstMail,
-		},
-	}
+	emailWorker := oncamq.New(ctx, redisClient, "emailQueue", emailHandlers)
+	paymentWorker := oncamq.New(ctx, redisClient, "paymentQueue", paymentHandlers)
 
-	oncamq.StartWorker(emailQueueWorker)
+	emailWorker.Start()
+	paymentWorker.Start()
+
+	emailWorker.Wait()
+	paymentWorker.Wait()
 }
 ```
 
-- Para usar workers para filas diferentes de forma concorrente, use uma Goroutine
-
-```golang
-
-func main() {
-	redisClient := redis.NewClient(&redis.Options{
-		Addr:     "localhost:6370",
-		Password: "redis",
-		DB:       0,
-		MaintNotificationsConfig: &maintnotifications.Config{
-			Mode: maintnotifications.ModeDisabled,
-		},
-	})
-
-	emailQueueWorker := oncamq.Worker{
-		Instance: redisClient,
-		Queue:    "emailQueue",
-		Handlers: oncamq.Handlers{
-			"firstAcess": SendFirstMail,
-		},
-	}
-
-	paymentQueueWorker := oncamq.Worker{
-		Instance: redisClient,
-		Queue:    "paymentQueue",
-		Handlers: oncamq.Handlers{
-			"createCustomer":   CreateCustomer,
-			"startTransaction": StartTransaction,
-		},
-	}
-
-	go oncamq.StartWorker(emailQueueWorker)
-	go oncamq.StartWorker(paymentQueueWorker)
-
-
-    select {}
-}
-```
+Confira os exemplos completos na pasta [/examples](/examples).
 
 ## 🤝 How to Contribute
 
@@ -142,9 +96,3 @@ func main() {
 2. Create a **Branch** (`feat/` or `fix/`).
 3. **Commit** your changes.
 4. Open a **PR** describing the problem and the solution.
-
-
-
-
-
-
